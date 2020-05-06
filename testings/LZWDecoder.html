@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <img id="image" width="100px">
+    <script src="../GIFEncoder.js"></script>
+    <script src="../LZWDecoder.js"></script>
+    <script>
+        let code_stream = [4 ,1 ,6 ,6 ,2 ,9 ,9 ,7];
+        let decoder = new LZWDecoder(2, 4);
+        let out = decoder.decode(code_stream);
+        console.log(out);
+    </script>
+</body>
+</html>
