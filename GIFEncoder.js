@@ -251,8 +251,55 @@ class GIF{
     }
 
     /**
+     * convert ImageData.data format to GIF.addFrame() needed
+     * @param {Array} rgba rgba array like
+     * [R1, G1, B1, A1, R2, G2, B2, A2, ...]
+     * @param {Array} background rgb array for background color
+     */
+    RGBA2RBG(rgba, background){
+        const MAX = 255;
+        function f(a, c, b){
+            a /= MAX;
+            c /= MAX;
+            b /= MAX;
+            let out = ((1-a) * b) + (a * c);
+            out *= MAX;
+            return Math.round(out);
+        }
+
+        return [
+            f(rgba[3], rgba[0], background[0]), 
+            f(rgba[3], rgba[1], background[1]), 
+            f(rgba[3], rgba[2], background[2])
+        ];
+    }
+
+    /**
+     * convert ImageData.data format to GIF.addFrame() needed
+     * @param {Array} imageData rgba array
+     * @return {Array} 3d array represent RGB on each pixel
+     * @see addFrame()
+     */
+    parseImageData(imageData){
+        let out = [];
+        let i = 0;
+        while(i < imageData.data.length){
+            for(let x=0; x < imageData.height; ++x){
+                let row = [];
+                for(let y=0; y < imageData.width; ++y){
+                    let pixel = this.RGBA2RBG([imageData.data[i], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]], [255,255,255]);
+                    row.push(pixel);
+                    i += 4;
+                }
+                out.push(row);
+            }
+        }
+        return out;
+    }
+
+    /**
      * 
-     * @param {list} frame 3d array represent RGB on each pixel
+     * @param {list} frame 3d array represent RGB on each pixel or ImageData
      * [
      *      [[R,G,B], [R,G,B], ...],
      *      [[R,G,B], [R,G,B], ...],
@@ -261,6 +308,9 @@ class GIF{
      * @param {uint} delay_time how long this frame last (hundredths of a second)
      */
     addFrame(frame, delay_time=0){
+        if(frame instanceof ImageData){
+            frame = this.parseImageData(frame);
+        }
         this.frames.push({
             delay_time:delay_time,
             data:frame
