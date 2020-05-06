@@ -8,39 +8,6 @@
 <body>
     <script src="../GIFEncoder.js"></script>
     <script>
-        function RGBA2RBG(rgba, background){
-            const MAX = 255;
-            function f(a, c, b){
-                a /= MAX;
-                c /= MAX;
-                b /= MAX;
-                let out = ((1-a) * b) + (a * c);
-                out *= MAX;
-                return Math.round(out);
-            }
-
-            return [
-                f(rgba[3], rgba[0], background[0]), 
-                f(rgba[3], rgba[1], background[1]), 
-                f(rgba[3], rgba[2], background[2])
-            ];
-        }
-        function parseImageData(imageData){
-            let out = [];
-            let i = 0;
-            while(i < imageData.data.length){
-                for(let x=0; x < imageData.height; ++x){
-                    let row = [];
-                    for(let y=0; y < imageData.width; ++y){
-                        let pixel = RGBA2RBG([imageData.data[i], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]], [255,255,255]);
-                        row.push(pixel);
-                        i += 4;
-                    }
-                    out.push(row);
-                }
-            }
-            return out;
-        }
         function loaded(){
 
             let canvas = document.getElementById("canvas");
@@ -51,7 +18,7 @@
             let imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             
             let gif = new GIF(canvas.width, canvas.height, [255,255,255]);
-            gif.addFrame(parseImageData(imageData));
+            gif.addFrame(imageData);
             let out = gif.render();
             document.getElementById("out").src= URL.createObjectURL(out);
             console.log(gif);
