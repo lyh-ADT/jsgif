@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlexSizeByteArrayReaderTest</title>
+</head>
+<body>
+    <script src="../LZWDecoder.js"></script>
+    <script>
+        let fsbar = new FlexSizeByteArrayReader([
+            0x55, // 0101 0101
+            0x1f  // 0001 1111
+        ]);
+        
+        let t = fsbar.read(4);
+        console.log(t, t == 0x05);
+        t = fsbar.read(5);
+        console.log(t, t == 0x15);
+        
+        fsbar.reset();
+        t = fsbar.read(6);
+        console.log(t, t == 0x15);
+        t = fsbar.read(4);
+        console.log(t, t == 0x0d);
+
+        fsbar.reset();
+        t = fsbar.read(8);
+        console.log(t, t == 0x55);
+        
+        fsbar.reset();
+        t = fsbar.read(16);
+        console.log(t, t == 0x1f55);
+    </script>
+</body>
+</html>

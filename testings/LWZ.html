@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        let lwz = new LZWEncoder(2, 4);
+        let code_stream = lwz.encode([1,1,1,1,1,2,2,2,2,2,1,1,1,1]);
+        console.log(code_stream);
+        let hex_str = '';
+        for(let i of code_stream){
+            hex_str += i.toString(16) + " ";
+        }
+        console.log(hex_str)
+    </script>
+</body>
+</html>

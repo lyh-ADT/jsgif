@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FlexSizeByteArray-Test</title>
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        let fsba = new FlexSizeByteArray();
+        fsba.add(3, 2);
+        fsba.add(8, 4);
+        fsba.add(8, 4);
+        let a = fsba.toArray();
+        console.log(a);
+        let correct = (""+a).replace(",", "") === "352";
+        console.log(`pass: ${correct}`);
+        document.write(`pass: ${correct}`);
+    </script>
+</body>
+</html>
