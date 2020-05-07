@@ -393,7 +393,7 @@ class GIF{
      */
     async parse(blob){
         let arrayBuffer = await blob.arrayBuffer();
-        let header = this.parseHeader(arrayBuffer);
+        let header = this.parseHeader(arrayBuffer.slice(0, 6));
     }
 
     /**
@@ -401,7 +401,7 @@ class GIF{
      * @param {ArrayBuffer} arrayBuffer 
      */
     parseHeader(arrayBuffer){
-        let header = new Uint8Array(arrayBuffer.slice(0, 6));
+        let header = new Uint8Array(arrayBuffer);
         if(header.length != 6){
             throw new Error("GIF Header invalid, too short");
         }
