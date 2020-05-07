@@ -386,4 +386,47 @@ class GIF{
         out.push(new Uint8Array([59]));
         return new Blob(out, {type:"image/gif"});
     }
+
+    /**
+     * 
+     * @param {Blob} blob Blob for GIF
+     */
+    async parse(blob){
+        let arrayBuffer = await blob.arrayBuffer();
+        let header = this.parseHeader(arrayBuffer);
+    }
+
+    /**
+     * 
+     * @param {ArrayBuffer} arrayBuffer 
+     */
+    parseHeader(arrayBuffer){
+        let header = new Uint8Array(arrayBuffer.slice(0, 6));
+        if(header.length != 6){
+            throw new Error("GIF Header invalid, too short");
+        }
+        let expected = "GIF89a";
+        let equaled = true;
+        for(let i=0; i < 6; ++i){
+            if(header[i] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(equaled){
+            return header;
+        }
+        expected = "GIF87a";
+        equaled = true;
+        for(let i=0; i < 6; ++i){
+            if(header[i] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(equaled){
+            return header;
+        }
+        throw new Error("GIF Header invalid, not 'GIF89a' or 'GIF87a'");
+    }
 }

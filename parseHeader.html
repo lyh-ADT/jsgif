@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>parseHeader</title>
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        function arrayEquals(array1, array2){
+            if(array1.length !== array2.length){
+                return false;
+            }
+            for(let i=0; i < array1.length; ++i){
+                if(array1[i] !== array2[i]){
+                    return false;
+                }
+            }
+            return true;
+        }
+        let gif = new GIF(0,0);
+
+        let arrayBuffer = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x61]).buffer;
+        let expected = [0x47, 0x49, 0x46, 0x38, 0x39, 0x61];
+        let header = gif.parseHeader(arrayBuffer);
+        console.log("pass:", arrayEquals(expected, header));
+
+        arrayBuffer = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39]).buffer;
+        try{
+            header = gif.parseHeader(arrayBuffer);
+            console.log("pass:", false);
+        }catch(e){
+            console.log("pass:", true);
+        }
+
+        arrayBuffer = new Uint8Array([0x47, 0x49, 0x46, 0x38, 0x39, 0x62]).buffer;
+        try{
+            header = gif.parseHeader(arrayBuffer);
+            console.log("pass:", false);
+        }catch(e){
+            console.log("pass:", true);
+        }
+    </script>
+</body>
+</html>
