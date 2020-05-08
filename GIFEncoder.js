@@ -157,35 +157,30 @@ class GIF{
     }
 
     /**
-     * @param {boolean} gct_flag Global Color Table Flag, ture is Enable
-     * @param {uint} cr Color Resolution, 0 < cr <= 7, when > 7 it will be set to 7
-     * @param {boolean} sf Sort Flag, wether sort the Global Color Table
-     * @param {int} pixel the size of Golbal Color Table, number of colors = pow(2, pixel+1)
-     * @param {int} background background color index in Global Color Table, use when gct_flag===true
-     * @param {int} pixel_aspect_ratio 
+     * set LogicalScreenDescriptor by Class Attribute
      */
-    setDataStream(gct_flag, cr, sf, pixel, background, pixel_aspect_ratio){
+    setDataStream(){
         this.gifDataStream = new Uint8Array(7);
         set32Int2Array(this.gifDataStream, 0,2, this.screen_width);
         set32Int2Array(this.gifDataStream, 2,2, this.screen_height);
         let b = 0;
-        if(gct_flag){
+        if(this.gct_flag){
             b |= 128;
         }
-        if(cr > 7){
-            cr = 7;
+        if(this.color_resolution > 7){
+            this.color_resolution = 7;
         }
-        b |= cr << 4;
-        if(sf){
+        b |= this.color_resolution << 4;
+        if(this.sort_flag){
             b |= 8;
         }
-        if(pixel > 7){
-            pixel = 7;
+        if(this.gct_size > 7){
+            this.gct_size = 7;
         }
-        b |= pixel;
+        b |= this.gct_size;
         set32Int2Array(this.gifDataStream, 4,1, b);
-        set32Int2Array(this.gifDataStream, 5,1, background);
-        set32Int2Array(this.gifDataStream, 6,1, pixel_aspect_ratio);
+        set32Int2Array(this.gifDataStream, 5,1, this.background_color);
+        set32Int2Array(this.gifDataStream, 6,1, this.pixel_aspect_ratio);
     }
 
     /**
@@ -348,7 +343,13 @@ class GIF{
             colors.push([0,0,0])
         }
 
-        this.setDataStream(true, quality, false, gcts, color_map[""+this.background_color], 0);
+        this.gct_flag = true;
+        this.color_resolution = quality;
+        this.sort_flag = false;
+        this.gct_size = gcts;
+        this.background_color = color_map[""+this.background_color];
+        this.pixel_aspect_ratio = 0;
+        this.setDataStream();
 
         this.setGolbalColorTable(colors);
         console.log("color table finished");
@@ -394,6 +395,7 @@ class GIF{
     async parse(blob){
         let arrayBuffer = await blob.arrayBuffer();
         let header = this.parseHeader(arrayBuffer.slice(0, 6));
+        let lsd = this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
     }
 
     /**
@@ -428,5 +430,24 @@ class GIF{
             return header;
         }
         throw new Error("GIF Header invalid, not 'GIF89a' or 'GIF87a'");
+    }
+
+    parseLogicalScreenDescriptor(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length != 7){
+            throw new Error("GIF LogicalScreenDescriptor invalid, too short");
+        }
+        this.screen_width = (l[1] << 8) | l[0]; // little_endian
+        this.screen_height = (l[3] << 8) | l[2]; // little_endian
+        let packed_field = l[4];
+        if(packed_field & 128 != 128){
+            throw new Error("GIF LogicalScreenDescriptor invalid, Global Color Table not enable, this library only support Global Color Table not Local");
+        }
+        this.gct_flag = true;
+        this.color_resolution = (packed_field & 112) >> 4;
+        this.sort_flag = ((packed_field & 8) === 8);
+        this.gct_size = packed_field & 7;
+        this.background_color = l[5];
+        this.pixel_aspect_ratio = l[6];
     }
 }

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>parseLogicalScreenDescriptor</title>
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        function LogicalScreenDescriptorAttributeEquals(gif, array){
+            function f(index, value){
+                if(array[index] !== value){
+                    console.error(`attribute ${index}`, value, "!== (expected)", array[index]);
+                    return false;
+                }
+                return true;
+            }
+            return f(0, gif.screen_width)
+                && f(1, gif.screen_height)
+                && f(2, gif.gct_flag)
+                && f(3, gif.color_resolution)
+                && f(4, gif.sort_flag)
+                && f(5, gif.gct_size)
+                && f(6, gif.background_color)
+                && f(7, gif.pixel_aspect_ratio);
+        }
+        let gif = new GIF(0,0);
+
+        let arrayBuffer = new Uint8Array([0x0A, 0x00, 0x0A, 0x00, 0x91, 0x00, 0x00]).buffer;
+        let expected = [0x0A, 0x0A, true, 1, false, 1, 0, 0];
+        gif.parseLogicalScreenDescriptor(arrayBuffer);
+        console.log("pass:", LogicalScreenDescriptorAttributeEquals(gif, expected));
+
+        arrayBuffer = new Uint8Array([0xA1, 0x1A, 0x0A, 0x00, 0xD7, 0x00, 0x00]).buffer;
+        expected = [0x1AA1, 0x0A, true, 5, false, 7, 0, 0];
+        gif.parseLogicalScreenDescriptor(arrayBuffer);
+        console.log("pass:", LogicalScreenDescriptorAttributeEquals(gif, expected));
+
+    </script>
+</body>
+</html>
