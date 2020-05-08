@@ -201,11 +201,7 @@ class GIF{
         }
     }
 
-    /**
-     * 
-     * @param {uint} loop_count how many times the animation should repeat, 0 mean loop forever 
-     */
-    setApplicationExtension(loop_count=0){
+    setApplicationExtension(){
         this.ape = new Uint8Array(19);
         set32Int2Array(this.ape, 0, 1, 33); // GIF Extension Code
         set32Int2Array(this.ape, 1, 1, 255); // Application Extension Label
@@ -215,7 +211,7 @@ class GIF{
         set32Int2Array(this.ape, 11, 3,  3288624, false); // 2.0
         set32Int2Array(this.ape, 14, 1,  3); // Sub-Block Length
         set32Int2Array(this.ape, 15, 1,  1); // fixed 1
-        set32Int2Array(this.ape, 16, 2,  loop_count);
+        set32Int2Array(this.ape, 16, 2,  this.loop_count);
         // terminator always 0
     }
 
@@ -353,7 +349,9 @@ class GIF{
 
         this.setGolbalColorTable(colors);
         console.log("color table finished");
-        this.setApplicationExtension(loop_count);
+
+        this.loop_count = loop_count;
+        this.setApplicationExtension();
 
         let image_datas = [];
         for(let frame of this.frames){
@@ -394,8 +392,9 @@ class GIF{
      */
     async parse(blob){
         let arrayBuffer = await blob.arrayBuffer();
-        let header = this.parseHeader(arrayBuffer.slice(0, 6));
-        let lsd = this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
+        this.header = this.parseHeader(arrayBuffer.slice(0, 6));
+        this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
+        this.parseApplicationExtension(arrayBuffer.slice(13, 32));
     }
 
     /**
@@ -449,5 +448,24 @@ class GIF{
         this.gct_size = packed_field & 7;
         this.background_color = l[5];
         this.pixel_aspect_ratio = l[6];
+    }
+
+    parseApplicationExtension(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length != 19){
+            throw new Error("GIF ApplicationExtension invalid, too short");
+        }
+        let expected = "NETSCAPE2.0";
+        let equaled = true;
+        for(let i=0; i < expected.length; ++i){
+            if(l[i+3] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(!equaled){
+            throw new Error("GIF ApplicationExtension invalid, not 'NETSCAPE2.0'");
+        }
+        this.loop_count = (l[17] << 8) | l[16];
     }
 }
