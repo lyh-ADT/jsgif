@@ -394,7 +394,8 @@ class GIF{
         let arrayBuffer = await blob.arrayBuffer();
         this.header = this.parseHeader(arrayBuffer.slice(0, 6));
         this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
-        this.parseApplicationExtension(arrayBuffer.slice(13, 32));
+        let ae_begin = 13 + Math.pow(2, gcts+1) - 1;
+        this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
     }
 
     /**
