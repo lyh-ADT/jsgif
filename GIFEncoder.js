@@ -394,8 +394,10 @@ class GIF{
         let arrayBuffer = await blob.arrayBuffer();
         this.header = this.parseHeader(arrayBuffer.slice(0, 6));
         this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
+        // TODO: parse GCT
         let ae_begin = 13 + Math.pow(2, gcts+1) - 1;
         this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
+        this.parseFrames(arrayBuffer.slice(ae_begin+19));
     }
 
     /**
@@ -469,4 +471,48 @@ class GIF{
         }
         this.loop_count = (l[17] << 8) | l[16];
     }
+
+    parseFrames(arrayBuffer, color_table){
+        let l = new Uint8Array(arrayBuffer);
+        this.frames = [];
+        while(l.length > 1){
+            let delay_time = this.parseGraphicControl(l.slice(0, 8));
+            // do not need ImageDescriptor right now, always full picture
+            let index = 18;
+            let fsbar = new FlexSizeByteArrayReader(l.slice(index));
+            let lzw = new LZWDecoder(this.gct_size+1,  Math.pow(2, this.gct_size+1));
+            let frame = [];
+            let index_stream = lzw.decode(fsbar)
+            for(let x=0; x < this.screen_height; ++x){
+                let row = [];
+                for(let y=0; y < this.screen_width; ++y){
+                    let i = index_stream.shift();
+                    if(!isNaN(i)){
+                        row.push(color_table[i]);
+                    } else {
+                        throw new Error("not enough data, cannot fill a frame");
+                    }
+                }
+                frame.push(row);
+            }
+            this.addFrame(frame, delay_time);
+            l = l.slice(index + fsbar.index+1);
+        }
+        if(l[0] != 0x3B){
+            throw new Error("GIF not finish correctly, or format not supported");
+        }
+    }
+
+    /**
+     * read delay_time from GraphicControl
+     * @param {Uint8Array} l 
+     * @return {Number} delay_time
+     */
+    parseGraphicControl(l){
+        if(!(l[0] === 33 && l[1] === 249 && l[2] === 4 && (l[3] === 8)||l[3]===0)){
+            throw new Error("GIF GraphicControl Invalid, not compatible GIF format");
+        }
+        return (l[5] << 8) | l[4];
+    }
+
 }

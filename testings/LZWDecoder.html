@@ -4,13 +4,11 @@
     <meta charset="UTF-8">
 </head>
 <body>
-    <img id="image" width="100px">
-    <script src="../GIFEncoder.js"></script>
     <script src="../LZWDecoder.js"></script>
     <script>
-        let code_stream = [4 ,1 ,6 ,6 ,2 ,9 ,9 ,7];
+        let array = [0x02, 0x16, 0x8C, 0x2D, 0x99, 0x87, 0x2A, 0x1C, 0xDC, 0x33, 0xA0, 0x02, 0x75, 0xEC, 0x95, 0xFA, 0xA8, 0xDE, 0x60, 0x8C, 0x04, 0x91, 0x4C, 0x01, 0x00];
         let decoder = new LZWDecoder(2, 4);
-        let out = decoder.decode(code_stream);
+        let out = decoder.decode(new FlexSizeByteArrayReader(array));
         console.log(out);
     </script>
 </body>
