@@ -6,29 +6,50 @@
     <title>FlexSizeByteArrayReaderTest</title>
 </head>
 <body>
-    <script src="../LZWDecoder.js"></script>
+    <script src="../GIFEncoder.js"></script>
     <script>
         let fsbar = new FlexSizeByteArrayReader([
+            0xFF,
+            0x02,
             0x55, // 0101 0101
             0x1f  // 0001 1111
         ]);
         
+        fsbar.read(8); // min_code_size 
         let t = fsbar.read(4);
         console.log(t, t == 0x05);
         t = fsbar.read(5);
         console.log(t, t == 0x15);
         
-        fsbar.reset();
+        fsbar = new FlexSizeByteArrayReader([
+            0xFF,
+            0x02,
+            0x55, // 0101 0101
+            0x1f  // 0001 1111
+        ]);
+        fsbar.read(8); // min_code_size 
         t = fsbar.read(6);
         console.log(t, t == 0x15);
         t = fsbar.read(4);
         console.log(t, t == 0x0d);
 
-        fsbar.reset();
+        fsbar = new FlexSizeByteArrayReader([
+            0xFF,
+            0x02,
+            0x55, // 0101 0101
+            0x1f  // 0001 1111
+        ]);
+        fsbar.read(8); // min_code_size 
         t = fsbar.read(8);
         console.log(t, t == 0x55);
         
-        fsbar.reset();
+        fsbar = new FlexSizeByteArrayReader([
+            0xFF,
+            0x02,
+            0x55, // 0101 0101
+            0x1f  // 0001 1111
+        ]);
+        fsbar.read(8); // min_code_size 
         t = fsbar.read(16);
         console.log(t, t == 0x1f55);
     </script>
