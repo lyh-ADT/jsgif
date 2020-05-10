@@ -394,10 +394,11 @@ class GIF{
         let arrayBuffer = await blob.arrayBuffer();
         this.header = this.parseHeader(arrayBuffer.slice(0, 6));
         this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
-        // TODO: parse GCT
-        let ae_begin = 13 + Math.pow(2, gcts+1) - 1;
+        const gct_bytes_length = (Math.pow(2, this.gct_size+1)-1)*3;
+        const color_table = this.parseColorTable(arrayBuffer.slice(13, 13+gct_bytes_length));
+        let ae_begin = 13 + gct_bytes_length;
         this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
-        this.parseFrames(arrayBuffer.slice(ae_begin+19));
+        this.parseFrames(arrayBuffer.slice(ae_begin+19), color_table);
     }
 
     /**
@@ -470,6 +471,22 @@ class GIF{
             throw new Error("GIF ApplicationExtension invalid, not 'NETSCAPE2.0'");
         }
         this.loop_count = (l[17] << 8) | l[16];
+    }
+
+    parseColorTable(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length % 3 !== 0){
+            throw new Error("Color Table length errer");
+        }
+        let color_table = [];
+        for(let i=0; i < l.length; i+=3){
+            color_table.push([
+                l[i],
+                l[i+1],
+                l[i+2]
+            ]);
+        }
+        return color_table;
     }
 
     parseFrames(arrayBuffer, color_table){
