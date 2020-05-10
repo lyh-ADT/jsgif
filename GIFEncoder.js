@@ -289,6 +289,25 @@ class GIF{
     }
 
     /**
+     * parse a frame into ImageData
+     * @param {Object} frame
+     * @return {ImageData}
+     */
+    parseFrame(frame){
+        let out = [];
+        for(let row of frame.data){
+            for(let color of row){
+                out.push(color[0], color[1], color[2], 255);
+            }
+        }
+        return new ImageData(new Uint8ClampedArray(out), this.screen_width, this.screen_height);
+    }
+
+    getImageDataFrameAt(index){
+        return this.parseFrame(this.frames[index]);
+    }
+
+    /**
      * 
      * @param {list} frame 3d array represent RGB on each pixel or ImageData
      * [
