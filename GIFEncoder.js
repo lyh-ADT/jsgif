@@ -387,18 +387,26 @@ class GIF{
     }
 
     /**
-     * 
+     * parse a blob
      * @param {Blob} blob Blob for GIF
+     * get every frame and delay time
+     * 
+     * noly NETSCAPE2.0 standard tested
+     * !!! not support Plain Text Extension, Comment Extension, Local Color Table
      */
     async parse(blob){
         let arrayBuffer = await blob.arrayBuffer();
         this.header = this.parseHeader(arrayBuffer.slice(0, 6));
         this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
-        const gct_bytes_length = (Math.pow(2, this.gct_size+1)-1)*3;
+        const gct_bytes_length = (1 << (this.gct_size+1))*3;
         const color_table = this.parseColorTable(arrayBuffer.slice(13, 13+gct_bytes_length));
         let ae_begin = 13 + gct_bytes_length;
-        this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
-        this.parseFrames(arrayBuffer.slice(ae_begin+19), color_table);
+        let hasAe = this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
+        if(hasAe){
+            this.parseFrames(arrayBuffer.slice(ae_begin+19), color_table);
+        } else {
+            this.parseFrames(arrayBuffer.slice(ae_begin), color_table);
+        }
     }
 
     /**
@@ -458,6 +466,10 @@ class GIF{
         let l = new Uint8Array(arrayBuffer);
         if(l.length != 19){
             throw new Error("GIF ApplicationExtension invalid, too short");
+        }
+        if(l[0] !== 0x21 || l[1] !== 0xFF){
+            console.warn("Could not find Application Extension, maybe it dosn't have one");
+            return false;
         }
         let expected = "NETSCAPE2.0";
         let equaled = true;
