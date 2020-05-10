@@ -21,11 +21,13 @@ something like below, the `src` should be the path to `GIFEncoder.js` on your se
 ```
 let gif = new GIF(10, 10);
 gif.addFrame([
-    two-dimension RGB matrix(0~255)
+    two-dimension RGB matrix(0~255) or ImageData
 ]);
 let b = gif.render();
 ```
-[demo](https://github.com/lyh-ADT/jsgif/blob/master/testings/GIF.html)
+![demo with two-dimension RGB matrix(0~255)](https://github.com/lyh-ADT/jsgif/blob/master/testings/GIF.html)
+
+![demo with ImageData](https://github.com/lyh-ADT/jsgif/blob/master/testings/GIF-data-sub-block.html)
 
 #### Decode
 > Attension, the decode part of the library is not complele !!!  
