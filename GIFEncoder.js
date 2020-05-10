@@ -522,7 +522,7 @@ class GIF{
      * @param {Blob} blob Blob for GIF
      * get every frame and delay time
      * 
-     * noly NETSCAPE2.0 standard tested
+     * only NETSCAPE2.0 standard tested
      * !!! not support Plain Text Extension, Comment Extension, Local Color Table
      */
     async parse(blob){
