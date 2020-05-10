@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>parseApplicationExtension</title>
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        let gif = new GIF(0,0);
+
+        let arrayBuffer = new Uint8Array([0x21, 0xFF, 0x0B, 0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30, 0x03, 0x01, 0x05, 0x00, 0x00]).buffer;
+        let expected = 0x05;
+        gif.parseApplicationExtension(arrayBuffer);
+        console.log("pass:", gif.loop_count === expected);
+        
+        arrayBuffer = new Uint8Array([0x21, 0xFF, 0x0B, 0x4F, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30, 0x03, 0x01, 0x05, 0x00, 0x00]).buffer;
+        try{
+            gif.parseApplicationExtension(arrayBuffer);
+            console.log("pass", false);
+        }catch{
+            console.log("pass:", true);
+        }
+
+        arrayBuffer = new Uint8Array([0x21, 0xFF, 0x0B, 0x4E, 0x45, 0x54, 0x53, 0x43, 0x41, 0x50, 0x45, 0x32, 0x2E, 0x30, 0x03, 0x01, 0x05, 0x10, 0x00]).buffer;
+        expected = 0x1005;
+        gif.parseApplicationExtension(arrayBuffer);
+        console.log("pass:", gif.loop_count === expected);
+
+    </script>
+</body>
+</html>

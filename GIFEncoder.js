@@ -133,6 +133,118 @@ class LZWEncoder{
     }
 };
 
+/**
+ * flexible code sizes array reader with data-sub block feature
+ */
+class FlexSizeByteArrayReader{
+    constructor(array){
+        this.array = [...array]; 
+        this.reset();
+    }
+
+    reset(){
+        this.index = 0;
+        this.left_size = 8;
+        this.read_value = 0;
+        this.read_size = 0;
+        this.sub_block_size = 1;
+    }
+
+    read(size){
+        if(this.left_size === 0){
+            this.index++;
+            this.sub_block_size--;
+            if(this.index >= this.array.length){
+                throw new Error("not enough data");
+            }
+            this.left_size = 8;
+            if(this.sub_block_size === 0){
+                this.sub_block_size = this.read(8) + 1;
+                return this.read(size);
+            }
+        }
+        if(this.left_size >= size){
+            let mask = (1 << size) - 1;
+            this.read_value |= (this.array[this.index] & mask) << this.read_size;
+            this.left_size -= size;
+            this.array[this.index] >>= size;
+            let out = this.read_value;
+            this.read_value = 0;
+            this.read_size = 0;
+            return out;
+        } else {
+            let mask = ((1 << this.left_size) - 1);
+            this.read_value = (this.array[this.index] & mask);
+            let left_size = this.left_size;
+            this.read_size += left_size;
+            this.array[this.index] = 0;
+            this.left_size = 0;
+            return this.read(size - left_size);
+        }
+    }
+}
+
+class LZWDecoder{
+    constructor(min_code_size, color_count, color_table=null){
+        this.min_code_size = min_code_size;
+        this.color_count = color_count;
+        this.color_table = color_table;
+        this.code_table = {};
+        let table_size = (1 << min_code_size) - 1;
+        this.clear_code = table_size + 1;
+        this.end_of_infomation_code = this.clear_code + 1;
+        this.initialCodeTable();
+    }
+
+    initialCodeTable(){
+        this.code_table = {};
+        this.code_table = {};
+        this.code_index = this.end_of_infomation_code;
+        for(let i=0; i < this.color_count; i++){
+            this.code_table[i] = i;
+        }
+    }
+
+    /**
+     * 
+     * @param {FlexSizeByteArrayReader} code_stream 
+     */
+    decode(code_stream){
+        let code_size = code_stream.read(8) + 1; // min_code_size
+        code_stream.read(code_size); // clear code
+        let c = code_stream.read(code_size);
+        let index_stream = [this.code_table[c]];
+        let k = 0;
+        let old = c;
+        while((c = code_stream.read(code_size)) !== this.end_of_infomation_code){
+            if(c === this.clear_code){
+                this.initialCodeTable();
+                continue;
+            }
+            if(this.code_table[c] === undefined){
+                k = (''+this.code_table[old])[0];
+                let out = [this.code_table[old],k].join(',');
+
+                index_stream = index_stream.concat(out.split(',').map(i => parseInt(i)));
+                this.code_table[++this.code_index] = out;
+            } else {
+                index_stream = index_stream.concat((''+this.code_table[c]).split(',').map(i => parseInt(i)));
+                k = (''+this.code_table[c])[0];
+                this.code_table[++this.code_index] = [this.code_table[old],k].join(',');
+            }
+            if(this.code_index + 1 === (1 << code_size)){
+                code_size++;
+            }
+            old = c;
+        }
+        code_stream.index++;
+        if(code_stream.array[code_stream.index] !== 0){
+            throw new Error("Image Data Block not finish correctly, Data might be damaged");
+        }
+        return index_stream;
+    }
+}
+
 class GIF{
     /**
      * 
@@ -157,35 +269,30 @@ class GIF{
     }
 
     /**
-     * @param {boolean} gct_flag Global Color Table Flag, ture is Enable
-     * @param {uint} cr Color Resolution, 0 < cr <= 7, when > 7 it will be set to 7
-     * @param {boolean} sf Sort Flag, wether sort the Global Color Table
-     * @param {int} pixel the size of Golbal Color Table, number of colors = pow(2, pixel+1)
-     * @param {int} background background color index in Global Color Table, use when gct_flag===true
-     * @param {int} pixel_aspect_ratio 
+     * set LogicalScreenDescriptor by Class Attribute
      */
-    setDataStream(gct_flag, cr, sf, pixel, background, pixel_aspect_ratio){
+    setDataStream(){
         this.gifDataStream = new Uint8Array(7);
         set32Int2Array(this.gifDataStream, 0,2, this.screen_width);
         set32Int2Array(this.gifDataStream, 2,2, this.screen_height);
         let b = 0;
-        if(gct_flag){
+        if(this.gct_flag){
             b |= 128;
         }
-        if(cr > 7){
-            cr = 7;
+        if(this.color_resolution > 7){
+            this.color_resolution = 7;
         }
-        b |= cr << 4;
-        if(sf){
+        b |= this.color_resolution << 4;
+        if(this.sort_flag){
             b |= 8;
         }
-        if(pixel > 7){
-            pixel = 7;
+        if(this.gct_size > 7){
+            this.gct_size = 7;
         }
-        b |= pixel;
+        b |= this.gct_size;
         set32Int2Array(this.gifDataStream, 4,1, b);
-        set32Int2Array(this.gifDataStream, 5,1, background);
-        set32Int2Array(this.gifDataStream, 6,1, pixel_aspect_ratio);
+        set32Int2Array(this.gifDataStream, 5,1, this.background_color);
+        set32Int2Array(this.gifDataStream, 6,1, this.pixel_aspect_ratio);
     }
 
     /**
@@ -206,11 +313,7 @@ class GIF{
         }
     }
 
-    /**
-     * 
-     * @param {uint} loop_count how many times the animation should repeat, 0 mean loop forever 
-     */
-    setApplicationExtension(loop_count=0){
+    setApplicationExtension(){
         this.ape = new Uint8Array(19);
         set32Int2Array(this.ape, 0, 1, 33); // GIF Extension Code
         set32Int2Array(this.ape, 1, 1, 255); // Application Extension Label
@@ -220,7 +323,7 @@ class GIF{
         set32Int2Array(this.ape, 11, 3,  3288624, false); // 2.0
         set32Int2Array(this.ape, 14, 1,  3); // Sub-Block Length
         set32Int2Array(this.ape, 15, 1,  1); // fixed 1
-        set32Int2Array(this.ape, 16, 2,  loop_count);
+        set32Int2Array(this.ape, 16, 2,  this.loop_count);
         // terminator always 0
     }
 
@@ -251,8 +354,74 @@ class GIF{
     }
 
     /**
+     * convert ImageData.data format to GIF.addFrame() needed
+     * @param {Array} rgba rgba array like
+     * [R1, G1, B1, A1, R2, G2, B2, A2, ...]
+     * @param {Array} background rgb array for background color
+     */
+    RGBA2RBG(rgba, background){
+        const MAX = 255;
+        function f(a, c, b){
+            a /= MAX;
+            c /= MAX;
+            b /= MAX;
+            let out = ((1-a) * b) + (a * c);
+            out *= MAX;
+            return Math.round(out);
+        }
+
+        return [
+            f(rgba[3], rgba[0], background[0]), 
+            f(rgba[3], rgba[1], background[1]), 
+            f(rgba[3], rgba[2], background[2])
+        ];
+    }
+
+    /**
+     * convert ImageData.data format to GIF.addFrame() needed
+     * @param {Array} imageData rgba array
+     * @return {Array} 3d array represent RGB on each pixel
+     * @see addFrame()
+     */
+    parseImageData(imageData){
+        let out = [];
+        let i = 0;
+        while(i < imageData.data.length){
+            for(let x=0; x < imageData.height; ++x){
+                let row = [];
+                for(let y=0; y < imageData.width; ++y){
+                    let pixel = this.RGBA2RBG([imageData.data[i], imageData.data[i+1], imageData.data[i+2], imageData.data[i+3]], [255,255,255]);
+                    row.push(pixel);
+                    i += 4;
+                }
+                out.push(row);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * parse a frame into ImageData
+     * @param {Object} frame
+     * @return {ImageData}
+     */
+    parseFrame(frame){
+        let out = [];
+        for(let row of frame.data){
+            for(let color of row){
+                out.push(color[0], color[1], color[2], 255);
+            }
+        }
+        return new ImageData(new Uint8ClampedArray(out), this.screen_width, this.screen_height);
+    }
+
+    getImageDataFrameAt(index){
+        return this.parseFrame(this.frames[index]);
+    }
+
+    /**
      * 
-     * @param {list} frame 3d array represent RGB on each pixel
+     * @param {list} frame 3d array represent RGB on each pixel or ImageData
      * [
      *      [[R,G,B], [R,G,B], ...],
      *      [[R,G,B], [R,G,B], ...],
@@ -261,6 +430,9 @@ class GIF{
      * @param {uint} delay_time how long this frame last (hundredths of a second)
      */
     addFrame(frame, delay_time=0){
+        if(frame instanceof ImageData){
+            frame = this.parseImageData(frame);
+        }
         this.frames.push({
             delay_time:delay_time,
             data:frame
@@ -298,11 +470,19 @@ class GIF{
             colors.push([0,0,0])
         }
 
-        this.setDataStream(true, quality, false, gcts, color_map[""+this.background_color], 0);
+        this.gct_flag = true;
+        this.color_resolution = quality;
+        this.sort_flag = false;
+        this.gct_size = gcts;
+        this.background_color = color_map[""+this.background_color];
+        this.pixel_aspect_ratio = 0;
+        this.setDataStream();
 
         this.setGolbalColorTable(colors);
         console.log("color table finished");
-        this.setApplicationExtension(loop_count);
+
+        this.loop_count = loop_count;
+        this.setApplicationExtension();
 
         let image_datas = [];
         for(let frame of this.frames){
@@ -336,4 +516,163 @@ class GIF{
         out.push(new Uint8Array([59]));
         return new Blob(out, {type:"image/gif"});
     }
+
+    /**
+     * parse a blob
+     * @param {Blob} blob Blob for GIF
+     * get every frame and delay time
+     * 
+     * only NETSCAPE2.0 standard tested
+     * !!! not support Plain Text Extension, Comment Extension, Local Color Table
+     */
+    async parse(blob){
+        let arrayBuffer = await blob.arrayBuffer();
+        this.header = this.parseHeader(arrayBuffer.slice(0, 6));
+        this.parseLogicalScreenDescriptor(arrayBuffer.slice(6, 13));
+        const gct_bytes_length = (1 << (this.gct_size+1))*3;
+        const color_table = this.parseColorTable(arrayBuffer.slice(13, 13+gct_bytes_length));
+        let ae_begin = 13 + gct_bytes_length;
+        let hasAe = this.parseApplicationExtension(arrayBuffer.slice(ae_begin, ae_begin+19));
+        if(hasAe){
+            this.parseFrames(arrayBuffer.slice(ae_begin+19), color_table);
+        } else {
+            this.parseFrames(arrayBuffer.slice(ae_begin), color_table);
+        }
+    }
+
+    /**
+     * 
+     * @param {ArrayBuffer} arrayBuffer 
+     */
+    parseHeader(arrayBuffer){
+        let header = new Uint8Array(arrayBuffer);
+        if(header.length != 6){
+            throw new Error("GIF Header invalid, too short");
+        }
+        let expected = "GIF89a";
+        let equaled = true;
+        for(let i=0; i < 6; ++i){
+            if(header[i] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(equaled){
+            return header;
+        }
+        expected = "GIF87a";
+        equaled = true;
+        for(let i=0; i < 6; ++i){
+            if(header[i] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(equaled){
+            return header;
+        }
+        throw new Error("GIF Header invalid, not 'GIF89a' or 'GIF87a'");
+    }
+
+    parseLogicalScreenDescriptor(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length != 7){
+            throw new Error("GIF LogicalScreenDescriptor invalid, too short");
+        }
+        this.screen_width = (l[1] << 8) | l[0]; // little_endian
+        this.screen_height = (l[3] << 8) | l[2]; // little_endian
+        let packed_field = l[4];
+        if(packed_field & 128 != 128){
+            throw new Error("GIF LogicalScreenDescriptor invalid, Global Color Table not enable, this library only support Global Color Table not Local");
+        }
+        this.gct_flag = true;
+        this.color_resolution = (packed_field & 112) >> 4;
+        this.sort_flag = ((packed_field & 8) === 8);
+        this.gct_size = packed_field & 7;
+        this.background_color = l[5];
+        this.pixel_aspect_ratio = l[6];
+    }
+
+    parseApplicationExtension(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length != 19){
+            throw new Error("GIF ApplicationExtension invalid, too short");
+        }
+        if(l[0] !== 0x21 || l[1] !== 0xFF){
+            console.warn("Could not find Application Extension, maybe it dosn't have one");
+            return false;
+        }
+        let expected = "NETSCAPE2.0";
+        let equaled = true;
+        for(let i=0; i < expected.length; ++i){
+            if(l[i+3] !== expected.charCodeAt(i)){
+                equaled = false;
+                break;
+            }
+        }
+        if(!equaled){
+            throw new Error("GIF ApplicationExtension invalid, not 'NETSCAPE2.0'");
+        }
+        this.loop_count = (l[17] << 8) | l[16];
+    }
+
+    parseColorTable(arrayBuffer){
+        let l = new Uint8Array(arrayBuffer);
+        if(l.length % 3 !== 0){
+            throw new Error("Color Table length errer");
+        }
+        let color_table = [];
+        for(let i=0; i < l.length; i+=3){
+            color_table.push([
+                l[i],
+                l[i+1],
+                l[i+2]
+            ]);
+        }
+        return color_table;
+    }
+
+    parseFrames(arrayBuffer, color_table){
+        let l = new Uint8Array(arrayBuffer);
+        this.frames = [];
+        while(l.length > 1){
+            let delay_time = this.parseGraphicControl(l.slice(0, 8));
+            // do not need ImageDescriptor right now, always full picture
+            let index = 18;
+            let fsbar = new FlexSizeByteArrayReader(l.slice(index));
+            let lzw = new LZWDecoder(this.gct_size+1,  Math.pow(2, this.gct_size+1));
+            let frame = [];
+            let index_stream = lzw.decode(fsbar)
+            for(let x=0; x < this.screen_height; ++x){
+                let row = [];
+                for(let y=0; y < this.screen_width; ++y){
+                    let i = index_stream.shift();
+                    if(!isNaN(i)){
+                        row.push(color_table[i]);
+                    } else {
+                        throw new Error("not enough data, cannot fill a frame");
+                    }
+                }
+                frame.push(row);
+            }
+            this.addFrame(frame, delay_time);
+            l = l.slice(index + fsbar.index+1);
+        }
+        if(l[0] != 0x3B){
+            throw new Error("GIF not finish correctly, or format not supported");
+        }
+    }
+
+    /**
+     * read delay_time from GraphicControl
+     * @param {Uint8Array} l 
+     * @return {Number} delay_time
+     */
+    parseGraphicControl(l){
+        if(!(l[0] === 33 && l[1] === 249 && l[2] === 4 && (l[3] === 8)||l[3]===0)){
+            throw new Error("GIF GraphicControl Invalid, not compatible GIF format");
+        }
+        return (l[5] << 8) | l[4];
+    }
+
 }
