@@ -465,6 +465,11 @@ class GIF{
         if(gcts < 1){
             gcts = 1;
         }
+        if (gcts > 8) {
+            console.warn("too many colors, reduce color using divide method");
+            this.reduceColor();
+            return this.render(quality, loop_count);
+        }
         // fill up the empty space in gct
         while(colors.length < Math.pow(2, gcts+1)){
             colors.push([0,0,0])
@@ -515,6 +520,29 @@ class GIF{
         }
         out.push(new Uint8Array([59]));
         return new Blob(out, {type:"image/gif"});
+    }
+
+    /**
+     * reduce number of color in this.frames using divide method
+     * (256/N)∗(256/N)∗(256/N), N = 16
+     */
+    reduceColor() {
+        const N = 16;
+        function mapColor(color) {
+            function calc(number) {
+                return Math.floor(number / N) * N + (N / 2);
+            }
+            color[0] = calc(color[0]);
+            color[1] = calc(color[1]);
+            color[2] = calc(color[2]);
+        }
+        for(let frame of this.frames){
+            for(let row of frame.data){
+                for(let color of row){
+                    mapColor(color);
+                }
+            }
+        }
     }
 
     /**

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>ReduceColor-Test</title>
+</head>
+<body>
+    <script src="/GIFEncoder.js"></script>
+    <script>
+        let gif = new GIF(10, 1);
+        gif.addFrame([
+            [[255,0,255],[253,0,0], [254,0,0], [255,0,0],     [255,0,0],     [0,0,255],     [0,0,255],      [0,0,255],[0,0,255],[255,0,255]]
+        ]);
+        gif.reduceColor();
+        let color_map = {}
+        let colors = [];
+        for(let frame of gif.frames){
+            for(let row of frame.data){
+                for(let color of row){
+                    if(color_map[""+color] === undefined){
+                        color_map[""+color] = colors.length;
+                        colors.push(color);
+                    }
+                }
+            }
+        }
+        console.log("pass:", colors.length === 3);
+        console.log(color_map);
+        console.log(colors);
+    </script>
+</body>
+</html>
